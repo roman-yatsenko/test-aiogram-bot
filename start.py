@@ -1,5 +1,6 @@
 import config
 from aiogram import Bot, Dispatcher, executor, types
+from aiogram.utils import deep_linking
 from quiz import *
 
 bot = Bot(token=config.TOKEN)
@@ -53,6 +54,28 @@ async def msg_with_poll(message: types.Message):
         f"Quiz saved. Total quiz count: {len(quiz_db[user_id])}"
     )
 
+@dp.inline_handler()
+async def inline_query(query: types.InlineQuery):
+    results = []
+    user_quizes = quiz_db.get(str(query.from_user.id))
+    if user_quizes:
+        for quiz in user_quizes:
+            keyboard = types.InlineKeyboardMarkup()
+            start_quiz_button = types.InlineKeyboardButton(
+                text="Send to group",
+                url=await deep_linking.get_startgroup_link(quiz.quiz_id)
+            )
+            keyboard.add(start_quiz_button)
+            results.append(types.InlineQueryResultArticle(
+                id=quiz.quiz_id,
+                title=quiz.question,
+                input_message_content=types.InputTextMessageContent(
+                    message_text="Send button below to send quiz to group"
+                ),
+                reply_markup=keyboard
+            ))
+    await query.answer(switch_pm_text="Create quiz", switch_pm_parameter="_",
+        results=results, cache_time=120, is_personal=True)
 
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
