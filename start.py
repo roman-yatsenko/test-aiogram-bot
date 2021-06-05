@@ -110,5 +110,25 @@ async def inline_query(query: types.InlineQuery):
     await query.answer(switch_pm_text="Create quiz", switch_pm_parameter="_",
         results=results, cache_time=120, is_personal=True)
 
+@dp.poll_answer_handler()
+async def handle_poll_answer(quiz_answer: types.PollAnswer):
+    """
+    Handler for new quiz answers
+
+    * quiz_answer - active quiz answer
+
+    :param quiz_answer: PollAnswer object with user info
+    """
+    quiz_owner = quiz_owners.get(quiz_answer.poll_id)
+    if not quiz_owner:
+        print(f"There is no quiz with quiz_answer.poll_id = {quiz_answer.poll_id}")
+        return
+    for quiz in quiz_db[quiz_owner]:
+        if quiz.quiz_id == quiz_answer.poll_id:
+            if quiz.correct_option_id == quiz_answer.option_ids[0]:
+                quiz.winners.append(quiz_answer.user.id)
+                if len(quiz.winners) == 3:
+                    await bot.stop_poll(quiz.chat_id, quiz.message_id)
+
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
