@@ -12,14 +12,47 @@ quiz_owners = {} # quiz owners info
 # Хэндлер на команду /start
 @dp.message_handler(commands=["start"])
 async def cmd_start(message: types.Message):
-    poll_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    poll_keyboard.add(types.KeyboardButton(
-        text="Create quiz",
-        request_poll=types.KeyboardButtonPollType(type=types.PollType.QUIZ)
-    ))
-    poll_keyboard.add(types.KeyboardButton(text="Cancel"))
-    await message.answer("Push the button and create quiz!", 
-        reply_markup=poll_keyboard)
+    if message.chat.type == types.ChatType.PRIVATE:
+        poll_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        poll_keyboard.add(types.KeyboardButton(
+            text="Create quiz",
+            request_poll=types.KeyboardButtonPollType(type=types.PollType.QUIZ)
+        ))
+        poll_keyboard.add(types.KeyboardButton(text="Cancel"))
+        await message.answer("Push the button and create quiz!", 
+            reply_markup=poll_keyboard)
+    else:
+        words = message.text.split()
+        if len(words) == 1:
+            bot_info = await bot.get_me()
+            keyboard = types.InlineKeyboardMarkup()
+            move_to_pm_button = types.InlineKeyboardButton(
+                text="Go to bot",
+                url=f"t.me/{bot_info.username}?start=anything"
+            )
+            keyboard.add(move_to_pm_button)
+            await message.reply("No quiz selected. Go to bot to create quiz", 
+                reply_markup=keyboard)
+        else:
+            quiz_owner = quiz_owners.get(words[1])
+            if not quiz_owner:
+                await message.reply('Invalid quiz. Try to create another one.')
+                return
+            for quiz in quiz_db[quiz_owner]:
+                if quiz.quiz_id == words[1]:
+                    msg = await bot.send_poll(
+                        chat_id=message.chat.id,
+                        question=quiz.question,
+                        is_anonymous=False,
+                        options=quiz.options,
+                        type="quiz",
+                        correct_option_id=quiz.correct_option_id
+                    )
+                    quiz_owners[msg.poll.id] = quiz_owner
+                    del quiz_owners[words[1]]
+                    quiz.quiz_id = msg.poll.id
+                    quiz.chat_id = msg.chat.id
+                    quiz.message_id = msg.message_id
 
 # Хэндлер на текстовое сообщение "Отмена"
 @dp.message_handler(lambda message: message.text == "Cancel")
