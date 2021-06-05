@@ -130,5 +130,30 @@ async def handle_poll_answer(quiz_answer: types.PollAnswer):
                 if len(quiz.winners) == 3:
                     await bot.stop_poll(quiz.chat_id, quiz.message_id)
 
+@dp.poll_handler(lambda active_quiz: active_quiz.is_closed is True)
+async def just_poll_answer(active_quiz: types.Poll):
+    """
+    Action on quiz close
+
+    :param active_quiz - active closed quiz 
+    """
+    quiz_owner = quiz_owners.get(active_quiz.id)
+    if not quiz_owner:
+        print(f"There is no quiz with active_quiz.id = {active_quiz.id}")
+        return
+    for num, quiz in enumerate(quiz_db[quiz_owner]):
+        if quiz.quiz_id == active_quiz.id:
+            congrats_text = []
+            for winner in quiz.winners:
+                chat_member_info = await bot.get_chat_member(quiz.chat_id, winner)
+                congrats_text.append(chat_member_info.user.get_mention(as_html=True))
+            await bot.send_message(quiz.chat_id, 
+                "Quiz is over! List of winners:\n\n" +
+                "\n".join(congrats_text),
+                parse_mode="HTML"
+            )
+            del quiz_owners[active_quiz.id]
+            del quiz_db[quiz_owner][num]
+
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
