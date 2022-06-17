@@ -1,2 +1,2 @@
 # test-aiogram-bot
-Telegram KitTest
+Telegram KitTest with aiogram
